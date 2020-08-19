@@ -1,0 +1,472 @@
+{% extends 'base.html' %}
+<!-- Load d3.js -->
+{% block head %}
+    <script src="http://d3js.org/d3.v4.js"></script>
+    <script src="https://code.jquery.com/jquery-1.10.2.js"></script>
+
+    <style>
+        #loader {
+            position: absolute;
+            left: 50%;
+            top: 50%;
+            z-index: 1;
+            width: 150px;
+            height: 150px;
+            margin: -75px 0 0 -75px;
+            border: 16px solid #f3f3f3;
+            border-radius: 50%;
+            border-top: 16px solid #3498db;
+            width: 120px;
+            height: 120px;
+            -webkit-animation: spin 2s linear infinite;
+            animation: spin 2s linear infinite;
+        }
+
+        @-webkit-keyframes spin {
+            0% {
+                -webkit-transform: rotate(0deg);
+            }
+            100% {
+                -webkit-transform: rotate(360deg);
+            }
+        }
+
+        @keyframes spin {
+            0% {
+                transform: rotate(0deg);
+            }
+            100% {
+                transform: rotate(360deg);
+            }
+        }
+    </style>
+{% endblock %} {% block content %}
+    <!-- Create a div where the graph will take place -->
+
+    <div id="loader"></div>
+    {#https://www.w3schools.com/howto/tryit.asp?filename=tryhow_css_loader5#}
+
+    <div id="my_dataviz" style="display: none"></div>
+    <div class="form-group" id="changeRow" style="display: none">
+        <label for="exampleFormControlSelect2" class="form-group-lg col-md-3"
+        >Choice colormap</label
+        >
+        <select class="form-control-sm col-md-4" id="selectColor">
+            <option value="GnBu" selected>GnBu</option>
+            <option value="Viridis">Viridis</option>
+            <option value="Rainbow">Rainbow</option>
+            <option value="Plasma">Plasma</option>
+            <option value="Cool">Cool</option>
+        </select>
+    </div>
+    <div id="boxplot_div">
+        <p id="boxplot_p"><b>Attribute name</b></p>
+        <div id="boxplot" style="overflow-y: scroll; height:400px;">
+        </div>
+    </div>
+
+{% endblock %}
+<!-- Load color palettes -->
+
+{% block scripts %}
+    <script src="https://d3js.org/d3-scale-chromatic.v1.min.js"></script>
+
+    <script>
+        // set the dimensions and margins of the graph
+        var margin = {top: 20, right: 25, bottom: 100, left: 150},
+            width = 1300 - margin.left - margin.right,
+            height = 500 - margin.top - margin.bottom;
+
+        // append the svgHeatmap object to the body of the page
+        var svgHeatmap = d3
+            .select("#my_dataviz")
+            .append("svg") // has to be svg
+            .attr("width", width + margin.left + margin.right)
+            .attr("height", height + margin.top + margin.bottom)
+            .append("g")
+            .attr("transform", "translate(" + margin.left + "," + margin.top + ")");
+
+        var max = 0;
+
+        // hide boxplot
+        var boxplot_div = document.getElementById("boxplot_div");
+        boxplot_div.style.display = "none";
+
+        const rewrite = (d) => {
+            boxplot_div.style.display = "block";
+            document.getElementById("boxplot_p").innerHTML = d.group;
+            document.getElementById("boxplot").innerHTML = "";
+            createBoxPlots(d.group);
+
+        };
+
+        //Read the data
+        d3.csv("http://127.0.0.1:8000/webserver/getHeatmapData/", function (data) {
+            // Labels of row and columns -> unique identifier of the column called 'group' and 'variable'
+            var myGroups = d3
+                .map(data, function (d) {
+                    return d.group;
+                })
+                .keys();
+            var myVars = d3
+                .map(data, function (d) {
+                    return d.variable;
+                })
+                .keys();
+            var values = d3
+                .map(data, function (d) {
+                    return d.value;
+                })
+                .keys();
+
+            jQuery.each(values, function (index, value) {
+                value = parseFloat(value);
+                if (value > max) {
+                    max = value;
+                }
+            });
+            console.log(max);
+            // Build X scales and axis:
+            var x = d3
+                .scaleBand()
+                .range([0, width])
+                .domain(myGroups)
+                .padding(0.05);
+
+            svgHeatmap.append("g")
+                .style("font-size", 15)
+                .attr("transform", "translate(0," + height + ")")
+                .call(d3.axisBottom(x).tickSize(0))
+                .select(".domain").remove();
+
+            svgHeatmap.selectAll("text")
+                .style("text-anchor", "end")
+                .attr("dx", "-.8em")
+                .attr("dy", ".15em")
+                .attr("transform", function (d) {
+                    return "rotate(-90)"
+                })
+            ;
+
+            // Build Y scales and axis:
+            var y = d3
+                .scaleBand()
+                .range([height, 0])
+                .domain(myVars)
+                .padding(0.05);
+            svgHeatmap
+                .append("g")
+                .style("font-size", 15)
+                .call(d3.axisLeft(y).tickSize(0))
+                .select(".domain")
+                .remove();
+
+            // Build color scale
+            var myColor = d3.scaleSequential(d3["interpolateGnBu"]).domain([0, max]);
+
+            // create a tooltip
+            var tooltip = d3
+                .select("#my_dataviz")
+                .append("div")
+                .style("opacity", 0)
+                .attr("class", "tooltip")
+                .style("background-color", "white")
+                .style("border", "solid")
+                .style("border-width", "2px")
+                .style("border-radius", "5px")
+                .style("padding", "5px");
+
+            // Three function that change the tooltip when user hover / move / leave a cell
+            var mouseover = function (d) {
+                tooltip.style("opacity", 1);
+                d3.select(this)
+                    .style("stroke", "black")
+                    .style("opacity", 1);
+            };
+            var mousemove = function (d) {
+                tooltip
+                    .html("The exact " + d.group + " value of<br>this cell is: " + d.value)
+                    .style("left", d3.mouse(this)[0] + 70 + "px")
+                    .style("top", d3.mouse(this)[1] + "px");
+            };
+            var mouseleave = function (d) {
+                tooltip.style("opacity", 0);
+                d3.select(this)
+                    .style("stroke", "none")
+                    .style("opacity", 0.8);
+            };
+
+            var mouseclick = function (d) {
+                rewrite(d);
+            };
+
+            // add the squares
+            svgHeatmap
+                .selectAll()
+                .data(data, function (d) {
+                    return d.group + ":" + d.variable;
+                })
+                .enter()
+                .append("rect")
+                .attr("x", function (d) {
+                    return x(d.group);
+                })
+                .attr("y", function (d) {
+                    return y(d.variable);
+                })
+                .attr("rx", 4)
+                .attr("ry", 4)
+                .attr("width", x.bandwidth())
+                .attr("height", y.bandwidth())
+                .style("fill", function (d) {
+                    return myColor(d.value);
+                })
+                .style("stroke-width", 4)
+                .style("stroke", "none")
+                .style("opacity", 0.8)
+                .on("mouseover", mouseover)
+                .on("mousemove", mousemove)
+                .on("mouseleave", mouseleave)
+                .on("click", mouseclick);
+
+            document.getElementById("loader").style.display = "none";
+            document.getElementById("my_dataviz").style.display = "block";
+            document.getElementById("changeRow").style.display = "block";
+        });
+
+        $("#selectColor").on("change", function () {
+            var colorScale = d3
+                .scaleSequential(d3["interpolate" + this.value])
+                .domain([0, max]);
+
+            svgHeatmap.selectAll("rect").style("fill", function (d) {
+                return colorScale(d.value);
+            });
+        });
+
+        function createBoxPlots(field) {
+            var marginBoxplot = {top: 10, right: 30, bottom: 300, left: 80},
+                widthBoxplot = 600 - marginBoxplot.left - marginBoxplot.right,
+                heightBoxplot = 600 - marginBoxplot.top - marginBoxplot.bottom;
+
+            // append the svg object to the body of the page
+            var svgBoxplot = d3
+                .select("#boxplot")
+                .append("svg")
+                .attr("width", widthBoxplot + marginBoxplot.left + marginBoxplot.right)
+                .attr("height", heightBoxplot + marginBoxplot.top + marginBoxplot.bottom)
+                .append("g")
+                .attr("transform", "translate(" + marginBoxplot.left + "," + marginBoxplot.top + ")");
+
+
+            d3.csv("http://127.0.0.1:8000/webserver/getBoxplotData/", (data) => {
+                // // Labels of row and columns -> unique identifier of the column called 'group' and 'variable'
+
+                var i = 0;
+                var neccessaryData = []
+                var max = 0
+                data.forEach(element => {
+                    if (element.attribute == field) {
+                        neccessaryData[i] = element;
+                        i++;
+                    }
+                });
+                max = Math.max.apply(Math, neccessaryData.map(function (o) {
+                    return o.max;
+                }))
+
+                var classes = d3
+                    .map(data, function (d) {
+                        return d.class;
+                    })
+                    .keys();
+
+                var tooltip = d3
+                    .select("#boxplot")
+                    .append("div")
+                    .style("opacity", 0)
+                    .attr("class", "tooltip")
+                    .style("background-color", "white")
+                    .style("border", "solid")
+                    .style("border-width", "2px")
+                    .style("border-radius", "5px")
+                    .style("padding", "5px");
+
+                // Three function that change the tooltip when user hover / move / leave a cell
+                var mouseover = d => {
+                    tooltip.style("opacity", 1);
+                    d3.select(d3.event.currentTarget)
+                        .style("stroke", "black")
+                        .style("opacity", 1);
+                };
+
+                var mousemove = d => {
+                    tooltip
+                        .html(
+                            "Attribute name: " +
+                            d.attribute +
+                            "<br>Average: " +
+                            d.avg +
+                            "<br>Min: " +
+                            d.min +
+                            "<br>Max: " +
+                            d.max +
+                            "<br>First quantile: " +
+                            d.q1 +
+                            "<br>Third quantile: " +
+                            d.q3
+                        )
+                        .style("left", d3.mouse(d3.event.currentTarget)[0] + 70 + "px")
+                        .style("top", d3.mouse(d3.event.currentTarget)[1] + 200 + "px");
+                };
+
+                var mouseleave = d => {
+                    tooltip.style("opacity", 0);
+                    d3.select(".tooltip")
+                        .style("stroke", "none")
+                        .style("opacity", 0.8);
+                };
+
+                // Show the X scale
+                var x = d3
+                    .scaleBand()
+                    .range([0, widthBoxplot])
+                    .domain(classes)
+                    .paddingInner(1)
+                    .paddingOuter(0.5);
+
+                svgBoxplot
+                    .append("g")
+                    .attr("transform", "translate(0," + heightBoxplot + ")")
+                    .call(d3.axisBottom(x));
+
+                svgBoxplot
+                    .append("text")
+                    .attr("text-anchor", "middle")
+                    .attr("x", widthBoxplot / 2)
+                    .attr("y", heightBoxplot + 50)
+                    .text("Data group");
+
+                svgBoxplot
+                    .append("text")
+                    .attr("text-anchor", "end")
+                    .attr("y", -45)
+                    .attr("x", -heightBoxplot / 2 + 35)
+                    .attr("dy", ".75em")
+                    .attr("transform", "rotate(-90)")
+                    .text("Intensity");
+
+                // Show the Y scale
+                var y = d3
+                    .scaleLinear()
+                    .domain([0, max + 50])
+                    .range([heightBoxplot, 0]);
+                svgBoxplot.append("g").call(d3.axisLeft(y));
+
+                // Show the main vertical line
+                svgBoxplot
+                    .selectAll("vertLines")
+                    .data(neccessaryData, (d) => {
+                        return {
+                            class: d.class,
+                            attribute: d.attribute,
+                            avg: d.avg,
+                            min: d.min,
+                            max: d.max,
+                            q1: d.q1,
+                            q3: d.q3
+                        }
+                    })
+                    .enter()
+                    .append("line")
+                    .attr("x1", (d) => {
+                        return x(d.class);
+                    })
+                    .attr("x2", d => {
+                        return x(d.class);
+                    })
+                    .attr("y1", d => {
+                        return y(d.min);
+                    })
+                    .attr("y2", d => {
+                        return y(d.max);
+                    })
+                    .attr("stroke", "black")
+                    .style("width", 40)
+                    .on("mouseover", mouseover)
+                    .on("mousemove", mousemove)
+                    .on("mouseleave", mouseleave);
+
+                // rectangle for the main box
+                var boxWidth = 100;
+                svgBoxplot
+                    .selectAll("boxes")
+                    .data(neccessaryData, (d) => {
+                        return {
+                            class: d.class,
+                            attribute: d.attribute,
+                            avg: d.avg,
+                            min: d.min,
+                            max: d.max,
+                            q1: d.q1,
+                            q3: d.q3
+                        }
+                    })
+                    .enter()
+                    .append("rect")
+                    .attr("x", d => {
+                        return x(d.class) - boxWidth / 2;
+                    })
+                    .attr("y", d => {
+                        return y(d.q3);
+                    })
+                    .attr("height", d => {
+                        return y(d.q1) - y(d.q3);
+                    })
+                    .attr("width", boxWidth)
+                    .attr("stroke", "black")
+                    .style("fill", "#69b3a2")
+                    .on("mouseover", mouseover)
+                    .on("mousemove", mousemove)
+                    .on("mouseleave", mouseleave);
+
+                // Show the avg
+                svgBoxplot
+                    .selectAll("avgLines")
+                    .data(neccessaryData, (d) => {
+                        return {
+                            class: d.class,
+                            attribute: d.attribute,
+                            avg: d.avg,
+                            min: d.min,
+                            max: d.max,
+                            q1: d.q1,
+                            q3: d.q3
+                        }
+                    })
+                    .enter()
+                    .append("line")
+                    .attr("x1", d => {
+                        return x(d.class) - boxWidth / 2;
+                    })
+                    .attr("x2", d => {
+                        return x(d.class) + boxWidth / 2;
+                    })
+                    .attr("y1", d => {
+                        return y(d.avg);
+                    })
+                    .attr("y2", d => {
+                        return y(d.avg);
+                    })
+                    .attr("stroke", "black")
+                    .style("width", 80)
+                    .on("mouseover", mouseover)
+                    .on("mousemove", mousemove)
+                    .on("mouseleave", mouseleave);
+
+
+            });
+        }
+    </script>
+
+{% endblock %}

@@ -1,0 +1,166 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block head %}
+
+    <title>Basic Three.js App</title>
+    <style>
+        body {
+            margin: 0;
+        }
+
+        canvas {
+            width: 100%;
+            height: 100%
+        }
+    </style>
+{% endblock %}
+
+{% block content %}
+    <div id="container"></div>
+    <div class="col-2" style="position: absolute; top: 15px; right: 15px; background-color: white">
+        <table class="table table-hover" width="400">
+            <thead>
+            <tr>
+                <th class="col-2">Class Name</th>
+
+            </tr>
+            </thead>
+            <tbody id="tbodyID">
+
+            </tbody>
+        </table>
+    </div>
+{% endblock %}
+
+{% block scripts %}
+<script src="{% static "/js/three.js" %}"></script>
+<script src="{% static "/js/OrbitControls.js" %}"></script>
+
+<script>
+
+    $(document).ready(function () {
+        $.getJSON('/webserver/tmpClasses', {get_param: 'value'}, function (data) {
+            $.each(data, function (index, element) {
+                $('#tbodyID').append("<tr id=\"" + element.tmp_class + "\"><td >" + element.tmp_class + "   <svg width=\"10\" height=\"10\"><rect x=\"0\" y=\"0\" width=\"10\" height=\"10\" fill=\"" + element.tmp_color + "\"></rect></svg></td></tr>");
+
+            });
+        });
+    });
+
+    var data_json = {{ my_data | safe }};
+    var axes = {{ axes | safe }};
+
+    // Create a scene which will hold all our meshes to be rendered
+    var scene = new THREE.Scene();
+    var contaier = $('#container');
+
+
+    // Create and position a camera
+    var camera = new THREE.PerspectiveCamera(
+        60,                                   // Field of view
+        contaier.innerWidth() / window.innerHeight, // Aspect ratio
+        0.1,                                  // Near clipping pane
+        1000                                  // Far clipping pane
+    );
+
+    // Reposition the camera
+    camera.position.set(5, 5, 0);
+
+    // Point the camera at a given coordinate
+    camera.lookAt(new THREE.Vector3(0, 0, 0));
+
+    // Create a renderer
+    var renderer = new THREE.WebGLRenderer({antialias: true});
+
+    // Size should be the same as the window
+    renderer.setSize(contaier.innerWidth(), window.innerHeight);
+
+    // Set a near white clear color (default is black)
+    renderer.setClearColor("#000000");
+
+    // Enable shadow mapping
+    renderer.shadowMap.enabled = true;
+    renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+
+    // Append to the document
+    contaier.append(renderer.domElement);
+
+    // Add an ambient lights
+    var ambientLight = new THREE.AmbientLight("#ffffff", 1);
+    scene.add(ambientLight);
+
+    {#// Add a point light that will cast shadows#}
+    {#var pointLight = new THREE.PointLight("#ffffff", 1);#}
+    {#pointLight.position.set(25, 50, 25);#}
+    {#pointLight.castShadow = true;#}
+    {#pointLight.shadow.mapSize.width = 1024;#}
+    {#pointLight.shadow.mapSize.height = 1024;#}
+    {#scene.add(pointLight);#}
+
+    // A basic material that shows the geometry wireframe.
+    var shadowMaterial = new THREE.ShadowMaterial({color: "#515151"});
+    shadowMaterial.opacity = 0.5;
+    var groundMesh = new THREE.Mesh(
+        new THREE.BoxGeometry(100, .1, 100),
+        shadowMaterial
+    );
+    groundMesh.receiveShadow = true;
+    scene.add(groundMesh);
+
+    {#// A mesh is created from the geometry and material, then added to the scene#}
+    {#var plane = new THREE.Mesh(#}
+    {#    new THREE.PlaneGeometry(10, 10, 10, 10),#}
+    {#    new THREE.MeshBasicMaterial({color: "#ff8a3e", wireframe: true})#}
+    {#);#}
+    {#plane.rotateX(Math.PI / 2);#}
+    {#scene.add(plane);#}
+    {##}
+    {#var plane_2 = new THREE.Mesh(#}
+    {#    new THREE.PlaneGeometry(10, 10, 10, 10),#}
+    {#    new THREE.MeshBasicMaterial({color: "#ff8a3e", wireframe: true})#}
+    {#);#}
+    {#scene.add(plane_2);#}
+
+    var color;
+    for (var i = 0; i < data_json.length; i++) {
+        var geometry;
+        if (data_json[i]['tmp_color'].length > 1) {
+            color = data_json[i]['tmp_color'];
+            geometry = new THREE.BoxGeometry(1, 1, 1);
+
+        } else {
+            color = "#eeede8";
+            geometry = new THREE.BoxGeometry(0.5, 0.5, 0.5);
+
+            {#console.log(color)#}
+        }
+        var material = new THREE.MeshStandardMaterial({
+            color: color,
+            shading: THREE.FlatShading, // default is THREE.SmoothShading
+            metalness: 0,
+            roughness: 0.8
+        });
+
+        var shapeOne = new THREE.Mesh(geometry, material);
+        shapeOne.position.x = data_json[i][axes[0]];
+        shapeOne.position.y = data_json[i][axes[1]];
+        shapeOne.position.z = data_json[i][axes[2]];
+        shapeOne.castShadow = true;
+        scene.add(shapeOne);
+    }
+
+
+    // Re-render the scene 
+    renderer.render(scene, camera);
+
+    // Add an orbit control which allows us to move around the scene. See the three.js example for more details
+    // https://github.com/mrdoob/three.js/blob/dev/examples/js/controls/OrbitControls.
+    var controls = new THREE.OrbitControls(camera, renderer.domElement);
+    controls.addEventListener('change', function () {
+        renderer.render(scene, camera);
+    }); // add this only if there is no animation loop (requestAnimationFrame){% comment %}{% endcomment %}
+</script>
+
+{% endblock %}
+

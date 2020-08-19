@@ -1,0 +1,387 @@
+{% extends 'base.html' %}
+
+{% block head %}
+    <!-- Load d3.js -->
+    <script src="https://d3js.org/d3.v4.js"></script>
+{% endblock %}
+
+{% block content %}
+    <div class="modal fade" id="myModal" role="dialog">
+        <div class="modal-dialog">
+
+            <!-- Modal content-->
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h4 class="modal-title">Cluster</h4>
+
+                    <button type="button" class="close" data-dismiss="modal">&times;</button>
+                </div>
+                <div class="modal-body">
+                    <label data-success="right">Class name</label>
+
+                    <input id="className" class="form-control" placeholder="class name...">
+                    <label data-success="right">Color</label>
+
+                    <input id="classColor" class="form-control" placeholder="#ffffff">
+                </div>
+                <div class="modal-footer">
+                    <button class="btn btn-primary" id="buttonClaseSave" onclick="buttonSave()">Save</button>
+                </div>
+            </div>
+
+        </div>
+    </div>
+    <!-- Create a div where the graph will take place -->
+    <div class="row" id="row0"></div>
+    <div class="row" id="row1"></div>
+    <div class="row" id="row2"></div>
+    <div class="row" id="row3">
+        <div class="col-3">
+            <div class="form-group">
+                <label for="exampleFormControlSelect1">Axis <b>X</b>:</label>
+                <select class="form-control" id="selectX">
+                    <option>CD34</option>
+                    <option>CD10</option>
+                    <option>CD19</option>
+                    <option>CD27</option>
+                    <option>IgM</option>
+                    <option>IgD</option>
+                    <option>CD138</option>
+                    <option>CD20</option>
+                    <option selected>CD22</option>
+                    <option>IgG</option>
+                    <option>IgA</option>
+                    <option>CD38</option>
+                    <option>CD45</option>
+                </select>
+                <label for="exampleFormControlSelect2">Axis <b>Y</b>:</label>
+                <select class="form-control" id="selectY">
+                    <option>CD34</option>
+                    <option>CD10</option>
+                    <option>CD19</option>
+                    <option>CD27</option>
+                    <option>IgM</option>
+                    <option>IgD</option>
+                    <option>CD138</option>
+                    <option selected>CD20</option>
+                    <option>CD22</option>
+                    <option>IgG</option>
+                    <option>IgA</option>
+                    <option>CD38</option>
+                    <option>CD45</option>
+                </select>
+                <label for="exampleFormControlSelect3">Exponentional scale:</label>
+                <input id="selectScale" class="form-control" placeholder="0.5">
+
+                <br>
+                <button type="button" class="btn btn-primary" id="primaryButton">Show</button>
+            </div>
+        </div>
+        <div class="col-3" style="overflow-y:auto;">
+            <table id="tableOfLoad" class="table table-hover" style="overflow-x: scroll;">
+
+                <thead>
+                <tr>
+                    <th class="col-1">Class Name</th>
+                    <th class="col-1">Color</th>
+
+                    <th class="col-1"></th>
+                </tr>
+                </thead>
+                <tbody>
+
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+{% endblock %}
+
+{% block scripts %}
+    <script>
+
+        $(document).ready(function () {
+            $("#selectScale").val('0.5');
+            console.log("ready!");
+            $.getJSON('/webserver/tmpClasses', {get_param: 'value'}, function (data) {
+                $.each(data, function (index, element) {
+                    $('#tableOfLoad tbody').append("<tr id=\"" + element.tmp_class + "\"><td >" + element.tmp_class + "</td><td id=\"className\">" + element.tmp_color + "</td><td><button type=\"button\" class=\"btnDelete btn btn-outline-danger btn-sm\">Delete</button></td></tr>");
+
+                    $(".btnDelete").bind("click", Delete);
+                });
+            });
+
+        });
+
+        function Delete() {
+            var par = $(this).parent().parent(); //tr
+            console.log("DELETE");
+            console.log(par.attr("id").toString());
+            $.post("/webserver/cleanClass/", {tmp_class: par.attr("id").toString()});
+            par.remove();
+        }
+
+
+        var d_brushed;
+        var brush_coords;
+
+        function buttonSave() {
+            d_brushed.push({
+                "name": $("#className").val(),
+                "color": $("#classColor").val()
+            })
+            console.log(d_brushed);
+            console.log(brush_coords);
+            $('#tableOfLoad tbody').append("<tr><td >" + $("#className").val() + "</td><td id=\"className\">" + $("#classColor").val() + "</td><td><button type=\"button\" class=\"btnDelete btn btn-outline-danger btn-sm\">Delete</button></td></tr>");
+            $(".btnDelete").bind("click", Delete);
+            {#$("#classColor").val('');#}
+            {#$("#className").val('');#}
+            $("#myModal").modal('toggle');
+            var remote = $.ajax({
+                type: "POST",
+                url: "/webserver/postCluster/",
+                data: {
+                    "data": JSON.stringify(d_brushed)
+                }, //, "name": $("#className").val(), "color": $("#classColor").val()
+                dataType: "json",
+            }).responseText;
+
+
+        }
+
+        // set the dimensions and margins of the graph
+        var margin = {top: 10, right: 10, bottom: 30, left: 30},
+            width = 300 - margin.left - margin.right,
+            height = 200 - margin.top - margin.bottom;
+
+        var divs = ["my_datavi1", "my_datavi2", "my_datavi3"];
+        var ilumination = ["CD34", "CD10", "CD19", "CD27", "IgM", "IgD", "CD138", "CD20", "CD22", "IgG", "IgA", "CD38", "have_class", "CD45",];
+        var i;
+        //Read the data
+        {#http://bl.ocks.org/feyderm/6bdbc74236c27a843db633981ad22c1b#}
+        var yScale;
+        var xScale;
+
+        function isBrushed(brush_coords, cx, cy) {
+
+            var x0 = brush_coords[0][0],
+                x1 = brush_coords[1][0],
+                y0 = brush_coords[0][1],
+                y1 = brush_coords[1][1];
+
+            return x0 <= cx && cx <= x1 && y0 <= cy && cy <= y1;
+        }
+
+
+        function brushing() {
+            if (!d3.event.selection) return;
+            var circles = d3.select("g").selectAll("circle");
+            circles.attr("class", "non_brushed");
+
+            brush_coords = d3.brushSelection(this);
+            circles.filter(function () {
+
+                var cx = d3.select(this).attr("cx"),
+                    cy = d3.select(this).attr("cy");
+
+                return isBrushed(brush_coords, cx, cy);
+            }).attr("class", "brushed");
+        }
+
+        function endBrush() {
+            if (!d3.event.selection) return;
+            d_brushed = d3.selectAll(".brushed").data();
+            $("#myModal").modal();
+            d3.selectAll(".selection").style("display", "none");
+
+        }
+
+
+        d3.csv("/webserver/getScatterData/", function (data) {
+            var x_min = parseFloat(d3.min(data, function (d) {
+                return parseFloat(d["CD22"])
+            }));
+
+            var x_max = parseFloat(d3.max(data, function (d) {
+                return parseFloat(d["CD22"])
+            }));
+
+            var y_min = parseFloat(d3.min(data, function (d) {
+                return parseFloat(d["CD20"])
+            }));
+
+            var y_max = parseFloat(d3.max(data, function (d) {
+                return parseFloat(d["CD20"])
+            }));
+
+            xScale = d3.scalePow()
+                .domain([x_min - 0.5, x_max * 1.1])
+                .exponent(0.5)
+                .range([0, width]);
+            yScale = d3.scalePow()
+                .exponent(0.5)
+                .domain([y_min - 0.5, y_max * 1.1])
+                .range([height, 0]);
+
+            var ilum_enum = 0;
+            for (i = 0; i < 4; i++) {
+
+                {#var row = d3.select("#row" + i.toString())#}
+
+                for (var j = 0; j < 4; j++) {
+                    if (i === 3 && j > 1) {
+                        {#if (j > 0) {#}
+                        {#    d3.select("#row" + i.toString())#}
+                        {#        .append("div").attr("class", "col-3")#}
+                        {##}
+                        {# }#}
+                    } else {
+                        {#console.log(j, i);#}
+                        var svg = d3.select("#row" + i.toString())
+                            .append("div").attr("class", "col-3")
+                            .append("h4").text(ilumination[ilum_enum])
+                            .append("svg")
+                            .attr("height", height + margin.top + margin.bottom)
+                            .append("g")
+                            .attr("transform",
+                                "translate(" + margin.left + "," + margin.top + ")");
+
+
+                        // Add X axis
+
+                        svg.append("g")
+                            .attr("transform", "translate(0," + height + ")")
+                            .attr("id", "xAxis")
+                            .call(d3.axisBottom(xScale));
+                        // Add Y axis
+
+                        svg.append("g")
+                            .attr("id", "yAxis")
+                            .call(d3.axisLeft(yScale));
+
+
+                        // Color scale: give me a specie name, I return a color
+                        {#var color = d3.scaleOrdinal()#}
+                        {#    .domain(["setosa", "versicolor", "virginica"])#}
+                        {#    .range(["#440154ff", "#21908dff", "#fde725ff"])#}
+
+
+                        // Option 1: give 2 color names
+                        if (i === 3 && j > 0) {
+                            var c_min = parseFloat(d3.min(data, function (d) {
+                                return parseFloat(d[ilumination[ilum_enum]])
+                            }));
+
+                            var c_max = parseFloat(d3.max(data, function (d) {
+                                return parseFloat(d[ilumination[ilum_enum]])
+                            }));
+
+                            var myColor = d3.scaleSequential(d3.interpolateRainbow)
+                                .domain([c_min * 0.8, c_max * 1.2]);
+
+                            console.log(ilumination[ilum_enum], c_max, c_min);
+
+                        } else {
+                            var c_max = parseFloat(d3.max(data, function (d) {
+                                return parseFloat(d[ilumination[ilum_enum]])
+                            }));
+                            var myColor = d3.scaleSequential(d3.interpolateRainbow)
+                                .domain([0, c_max * 1.2]);
+
+                            console.log(ilumination[ilum_enum], c_max, c_min);
+                        }
+
+                        // Add dots
+                        svg.append('g')
+                            .selectAll("dot")
+                            .data(data)
+                            .enter()
+                            .append("circle")
+                            .attr("cx", function (d) {
+                                return xScale(d["CD22"]);
+                            })
+                            .attr("cy", function (d) {
+                                return yScale(d["CD20"]);
+                            })
+                            .attr("class", "non_brushed")
+                            .attr("r", 2)
+                            .style("fill", function (d) {
+                                return myColor(d[ilumination[ilum_enum]])
+                            });
+
+                        svg.call(d3.brush()
+                            .extent([[0, 0], [500, 500]])
+                            .on("brush", brushing)
+                            .on("end", endBrush)
+                        );
+
+                        {#Sepal_Length,Sepal_Width,Petal_Length,Petal_Width,Species#}
+                    }
+                    ilum_enum += 1;
+
+                }
+
+            }
+        });
+
+        $("#primaryButton").click(function () {
+            {#alert($("#selectX").val() + " " + $("#selectY").val());#}
+            d3.csv("/webserver/getScatterData/", function (data) {
+
+                var x_min = parseFloat(d3.min(data, function (d) {
+                    return parseFloat(d[$("#selectX").val()])
+                }));
+
+                var x_max = parseFloat(d3.max(data, function (d) {
+                    return parseFloat(d[$("#selectX").val()])
+                }));
+
+                var y_min = parseFloat(d3.min(data, function (d) {
+                    return parseFloat(d[$("#selectY").val()])
+                }));
+
+                var y_max = parseFloat(d3.max(data, function (d) {
+                    return parseFloat(d[$("#selectY").val()])
+                }));
+
+                xScale = d3.scalePow()
+                    .domain([x_min - parseFloat($("#selectScale").val()), x_max * 1.1])
+                    .exponent(parseFloat($("#selectScale").val()))
+                    .range([0, width]);
+
+                d3.selectAll('#xAxis') // redraw the xAxis
+                    .transition()
+                    .duration(1000)
+                    .call(d3.axisBottom(xScale));
+                {#d3.select('#xAxisLabel') // change the xAxisLabel#}
+                {#  .transition().duration(1000)#}
+                {#  .text(value)#}
+
+                yScale = d3.scalePow()
+                    .exponent(parseFloat($("#selectScale").val()))
+                    .domain([y_min - parseFloat($("#selectScale").val()), y_max * 1.1])
+                    .range([height, 0]);
+
+
+                d3.selectAll('#yAxis') // redraw the xAxis
+                    .transition()
+                    .duration(1000)
+                    .call(d3.axisLeft(yScale));
+
+                d3.selectAll("g")
+                    .selectAll("circle")
+                    .data(data)  // Update with new data
+                    .transition()
+                    .duration(1000)
+                    .attr("cx", function (d) {
+                        return xScale(d[$("#selectX").val()]);
+                    })
+                    .attr("cy", function (d) {
+                        return yScale(d[$("#selectY").val()]);
+                    });
+            })
+        })
+
+
+    </script>
+{% endblock %}

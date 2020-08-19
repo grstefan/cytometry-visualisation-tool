@@ -1,0 +1,282 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Title</title>
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.3.1/jquery.min.js"></script>
+    {#    <script src="https://code.jquery.com/jquery-3.3.1.slim.min.js"#}
+    {#            integrity="sha384-q8i/X+965DzO0rT7abK41JStQIAqVgRVzpbzo5smXKp4YfRvH+8abtTE1Pi6jizo"#}
+    {#            crossorigin="anonymous"></script>#}
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/popper.js/1.14.7/umd/popper.min.js"
+            integrity="sha384-UO2eT0CpHqdSJQ6hJty5KVphtPhzWj9WO1clHTMGa3JDZwrnQq4sF86dIHNDz0W1"
+            crossorigin="anonymous"></script>
+    <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.3.1/js/bootstrap.min.js"
+            integrity="sha384-JjSmVgyd0p3pXB1rRibZUAYoIIy6OrQ6VrjIEaFf/nJGzIxFDsf4x0xIM+B07jRM"
+            crossorigin="anonymous"></script>
+    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.3.1/css/bootstrap.min.css"
+          integrity="sha384-ggOyR0iXCbMQv3Xipma34MD+dH/1fQ784/j6cY/iJTQUOhcWr7x9JvoRxT2MZw1T" crossorigin="anonymous">
+    <style>
+
+        /*!
+ * Start Bootstrap - Simple Sidebar (https://startbootstrap.com/)
+ * Copyright 2013-2016 Start Bootstrap
+ * Licensed under MIT (https://github.com/BlackrockDigital/startbootstrap/blob/gh-pages/LICENSE)
+ */
+
+        body {
+            overflow-x: hidden;
+        }
+
+        #sidebar-wrapper {
+            min-height: 100vh;
+            margin-left: -15rem;
+            -webkit-transition: margin .25s ease-out;
+            -moz-transition: margin .25s ease-out;
+            -o-transition: margin .25s ease-out;
+            transition: margin .25s ease-out;
+        }
+
+        #sidebar-wrapper .sidebar-heading {
+            padding: 0.875rem 1.25rem;
+            font-size: 1.2rem;
+        }
+
+        #sidebar-wrapper .list-group {
+            width: 15rem;
+        }
+
+        #page-content-wrapper {
+            min-width: 100vw;
+        }
+
+        #wrapper.toggled #sidebar-wrapper {
+            margin-left: 0;
+        }
+
+        @media (min-width: 768px) {
+            #sidebar-wrapper {
+                margin-left: 0;
+            }
+
+            #page-content-wrapper {
+                min-width: 0;
+                width: 100%;
+            }
+
+            #wrapper.toggled #sidebar-wrapper {
+                margin-left: -15rem;
+            }
+        }
+
+        .custom-file {
+            display: inline-block;
+            overflow: hidden;
+            vertical-align: middle;
+            /* new lines */
+            width: 100%;
+            position: absolute;
+            left: 0;
+            padding-left: 30px;
+            white-space: nowrap;
+            text-overflow: ellipsis;
+        }
+
+        .loader {
+            position: absolute;
+            left: 50%;
+            top: 40%;
+            border: 16px solid #f3f3f3; /* Light grey */
+            border-top: 16px solid #3498db; /* Blue */
+            border-radius: 50%;
+            width: 120px;
+            height: 120px;
+            animation: spin 2s linear infinite;
+            border-top: 16px solid blue;
+            border-right: 16px solid green;
+            border-bottom: 16px solid red;
+        }
+
+        @keyframes spin {
+            0% {
+                transform: rotate(0deg);
+            }
+            100% {
+                transform: rotate(360deg);
+            }
+        }
+
+        #overlay {
+            position: fixed; /* Sit on top of the page content */
+            display: none; /* Hidden by default */
+            width: 100%; /* Full width (cover the whole page) */
+            height: 100%; /* Full height (cover the whole page) */
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: rgba(0, 0, 0, 0.5); /* Black background with opacity */
+            z-index: 2; /* Specify a stack order in case you're using a different order for other elements */
+            cursor: pointer; /* Add a pointer on hover */
+        }
+    </style>
+
+    {% block head %}
+    {% endblock %}
+</head>
+<body>
+{#https://github.com/BlackrockDigital/startbootstrap-simple-sidebar#}
+<div class="d-flex" id="wrapper">
+    <!-- Sidebar -->
+    <div id="sidebar-wrapper">
+        <div class="sidebar-heading"><a href="/">Vizualizácia dát</a></div>
+        <div class="list-group list-group-flush">
+            <a href="/" class="list-group-item list-group-item-action bg">Dáta</a>
+            <a href="/webserver/heatmap" class="list-group-item list-group-item-action bg">Heatmap</a>
+            {#            <a href="/webserver/boxplot" class="list-group-item list-group-item-action bg">Boxplot</a>#}
+            <a href="/webserver/scatter-plot" class="list-group-item list-group-item-action bg">Scatter plot</a>
+            {#                <a href="/webserver/tree&data=PCA" class="list-group-item list-group-item-action bg">WebGL</a>#}
+
+            {#            <a href="#" class="list-group-item list-group-item-action bg">Status</a>#}
+        </div>
+        <div class="dropdown list-group list-group-flush">
+            <button class="btn btn-secondary list-group-item list-group-item-action bg" type="button"
+                    id="dropdownMenuButton"
+                    data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+                WebGL
+            </button>
+            <div class="dropdown-menu ist-group list-group-flush" aria-labelledby="dropdownMenuButton">
+                <a href="/webserver/tree&data=tSNE" class="dropdown-item">tSNE</a>
+                <div class="dropdown-divider"></div>
+                <a href="/webserver/tree&data=PCA" class="dropdown-item">PCA</a>
+            </div>
+        </div>
+    </div>
+    <!-- /#sidebar-wrapper -->
+    <div id="page-content-wrapper">
+        <div class="container-fluid">
+            {% block content %}
+                <table id="tableOfLoad" class="table table-hover">
+
+                    <thead>
+                    <tr>
+                        <th scope="col">File</th>
+                        <th scope="col">Class Name</th>
+                        <th scope="col"></th>
+                    </tr>
+                    </thead>
+                    <tbody></tbody>
+                </table>
+                <div class="form-row">
+                    <div class="form-group col-5">
+                        {#                    <input type="file" id="fileUpload" name="myFile">#}
+                        <div class="custom-file">
+                            <input type="file" class="custom-file-input" id="fileUpload">
+                            <label class="custom-file-label" for="customFile" id="fileUpload">Choose file</label>
+                        </div>
+                    </div>
+                    <div class="form-group col-3">
+                        <input type="text" id="class_name" class="form-control" name="fname"
+                               placeholder="Name of class..">
+                    </div>
+                    <div class="form-group col-1">
+                        <button type="button" id="upload" class="btn btn-primary">Upload</button>
+                    </div>
+                    <div class="form-group col-2">
+                        <button type="button" id="cleanDatabase" class="btn btn-danger">Delete database</button>
+                    </div>
+                    <div class="form-group col-1">
+                        <button type="button" id="clculateAllFeatures" class="btn btn-success">Analyze</button>
+                    </div>
+                </div>
+                <div id="overlay">
+                    <div class="loader" id="loader"></div>
+                </div>
+            {% endblock %}
+
+        </div>
+    </div>
+    <!-- /#page-content-wrapper -->
+</div>
+</body>
+
+{% block scripts %}
+    <script>
+        $(document).ready(function () {
+            console.log("ready!");
+            $.getJSON('/webserver/loadedDataset', {get_param: 'value'}, function (data) {
+                $.each(data, function (index, element) {
+                    $('#tableOfLoad tbody').append("<tr id=" + element.tmp_class + "><td id=\"firstName\">" + element.name + "</td><td id=\"className\">" + element.tmp_class + "</td><td><button type=\"button\" class=\"btnDelete btn btn-outline-danger\">Delete</button></td></tr>");
+                    $(".btnDelete").bind("click", Delete);
+                });
+            });
+
+        });
+
+        function on() {
+            document.getElementById("overlay").style.display = "block";
+        }
+
+        function off() {
+            document.getElementById("overlay").style.display = "none";
+        }
+
+        $("#clculateAllFeatures").click(function () {
+            on();
+
+            $.get("/webserver/analyzeData", function (status) {
+                {#alert("\nStatus: " + status);#}
+                off();
+            });
+        });
+
+        $("#upload").click(function () {
+            if (fileUpload.value != null) {
+                var uploadFile = new FormData();
+                var files = $("#fileUpload").get(0).files;
+                // Add the uploaded file content to the form data collection
+                if ((files.length > 0) && ($("#class_name").val().length > 0)) {
+                    uploadFile.append("file", files[0]);
+                    uploadFile.append('fileName', files[0].name);
+                    uploadFile.append('name_of_class', $("#class_name").val());
+                    $.ajax({
+                        url: "/webserver/loadDataset/",
+                        contentType: false,
+                        processData: false,
+                        data: uploadFile,
+                        type: 'POST',
+                        success: function () {
+                            $('#tableOfLoad > tbody').append("<tr id=" + $("#class_name").val() + "><td id=\"firstName\">" + files[0].name + "</td><td id=\"className\">" + $("#class_name").val() + "</td><td><button type=\"button\" class=\"btnDelete btn btn-outline-danger\">Delete</button></td></tr>")
+                            $("#class_name").val('');
+                            $("#fileUpload").next('.custom-file-label').html('Choose file');
+                            $(".btnDelete").bind("click", Delete);
+                        }
+                    });
+                } else {
+                    alert("Missing values!");
+                }
+            } else {
+                alert("Missing values!");
+            }
+        });
+
+        $("#cleanDatabase").click(function () {
+            $.post("/webserver/cleanDataset/", {name: 'all'});
+            $('#tableOfLoad tbody').empty();
+        });
+
+        function Delete() {
+            var par = $(this).parent().parent(); //tr
+            $.post("/webserver/cleanDataset/", {name: $(this).parent().parent().attr('id').toString()});
+            par.remove();
+        }
+
+        $('#fileUpload').on('change', function () {
+            //get the file name
+            var fileName = $(this).get(0).files[0].name;
+            //replace the "Choose a file" label
+            $(this).next('.custom-file-label').html(fileName);
+        })
+
+    </script>
+{% endblock %}
+</html>
