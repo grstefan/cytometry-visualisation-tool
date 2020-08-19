@@ -2,3 +2,4 @@ visualization/visualization/__pycache__/*
 visualization/webserver/__pycache__/*
 visualization/webserver/migrations/__pycache__/*
 .idea/*
+visualization/db.sqlite3
