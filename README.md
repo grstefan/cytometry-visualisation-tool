@@ -1,4 +1,4 @@
-# Visualization tool for Cytometric data analysis
+# Visualisation tool for Cytometric data analysis
 
 This application is a tool for visualising and analysing cytometric data with different types of visualisations.
 
